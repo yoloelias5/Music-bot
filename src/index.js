@@ -403,15 +403,10 @@ player.events.on('playerError', (queue, error) => console.error(`Track error in 
 
 (async () => {
   try {
-    await player.extractors.loadDefault();
-    await player.extractors.register(YoutubeiExtractor, {
-      // Keep searches on regular YouTube instead of relying on YouTube Music bridging.
-      overrideBridgeMode: 'yt',
-      // Known workaround for YouTube player-signature parsing failures in youtubei.js.
-      innertubeConfigRaw: {
-        player_id: '0004de42',
-      },
-    });
+    // Register only the YouTube extractor. Loading discord-player's default
+    // pack also loads unrelated providers (including Spotify) and the legacy
+    // ytdl extractor, which this YouTube-only bot does not use.
+    await player.extractors.register(YoutubeiExtractor, {});
     console.log('YouTubei extractor registered (regular YouTube search mode).');
     await client.login(process.env.DISCORD_TOKEN);
   } catch (error) {
