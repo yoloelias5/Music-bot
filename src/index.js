@@ -9,7 +9,7 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
 } = require('discord.js');
-const { Player, useHistory } = require('discord-player');
+const { Player, QueryType, useHistory } = require('discord-player');
 
 const required = ['DISCORD_TOKEN', 'CLIENT_ID'];
 for (const key of required) {
@@ -106,6 +106,23 @@ function isYouTubeUrl(value) {
   }
 }
 
+function normalizeYouTubeUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.hostname.endsWith('youtube.com') && url.pathname.startsWith('/shorts/')) {
+      const videoId = url.pathname.split('/')[2];
+      if (videoId) {
+        url.pathname = '/watch';
+        url.search = '';
+        url.searchParams.set('v', videoId);
+      }
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   try {
@@ -142,7 +159,9 @@ client.on('interactionCreate', async interaction => {
         if (/^https?:\/\//i.test(input) && !isYouTubeUrl(input)) {
           return interaction.editReply('This bot supports YouTube links only. Use a YouTube URL or search by song name.');
         }
-        const { track } = await player.play(voiceChannel, input, {
+        const playInput = isYouTubeUrl(input) ? normalizeYouTubeUrl(input) : input;
+        const { track } = await player.play(voiceChannel, playInput, {
+          searchEngine: isYouTubeUrl(input) ? QueryType.YOUTUBE_VIDEO : QueryType.YOUTUBE_SEARCH,
           nodeOptions: {
             metadata: { channel: interaction.channel },
             volume: 70,
@@ -199,7 +218,10 @@ client.on('interactionCreate', async interaction => {
       case 'search': {
         await interaction.deferReply({ ephemeral: true });
         const query = interaction.options.getString('query', true);
-        const result = await player.search(query, { requestedBy: interaction.user });
+        const result = await player.search(query, {
+          searchEngine: QueryType.YOUTUBE_SEARCH,
+          requestedBy: interaction.user,
+        });
         const tracks = result.tracks.slice(0, 5);
         if (!tracks.length) return interaction.editReply('No YouTube results found. Try a more specific search.');
         const lines = tracks.map((track, index) => `**${index + 1}.** [${track.title}](${track.url}) · ${track.duration}`);
@@ -219,7 +241,11 @@ client.on('interactionCreate', async interaction => {
         if (/^https?:\/\//i.test(query) && !isYouTubeUrl(query)) {
           return interaction.editReply('This bot supports YouTube links only.');
         }
-        const result = await player.search(query, { requestedBy: interaction.user });
+        const searchInput = isYouTubeUrl(query) ? normalizeYouTubeUrl(query) : query;
+        const result = await player.search(searchInput, {
+          searchEngine: isYouTubeUrl(query) ? QueryType.YOUTUBE_VIDEO : QueryType.YOUTUBE_SEARCH,
+          requestedBy: interaction.user,
+        });
         const track = result.tracks[0];
         if (!track) return interaction.editReply('No YouTube results found.');
         queue.insertTrack(track, 0);
