@@ -407,11 +407,18 @@ player.events.on('playerError', (queue, error) => console.error(`Track error in 
 
 (async () => {
   try {
-    // Register only the YouTube extractor. Loading discord-player's default
-    // pack also loads unrelated providers (including Spotify) and the legacy
-    // ytdl extractor, which this YouTube-only bot does not use.
+    // Discord Player v6 may preload its bundled default extractors.
+    // Remove every provider first so Spotify, Apple Music, SoundCloud,
+    // Vimeo, Reverbnation, attachments and the legacy YouTube extractor
+    // are not available in this YouTube-only bot.
+    await player.extractors.unregisterAll();
     await player.extractors.register(YoutubeiExtractor, {});
-    console.log('YouTubei extractor registered (regular YouTube search mode).');
+    const registered = [...player.extractors.store.keys()];
+    console.log('Active extractors:', registered);
+    if (registered.length !== 1 || registered[0] !== YoutubeiExtractor.identifier) {
+      throw new Error('Unexpected extractor registry: this bot must load YouTubei only.');
+    }
+    console.log('YouTube-only extractor registered.');
     await client.login(process.env.DISCORD_TOKEN);
   } catch (error) {
     console.error('Bot startup failed:', error);
