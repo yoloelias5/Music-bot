@@ -102,6 +102,15 @@ function getQueue(guildId) {
   return player.nodes.get(guildId);
 }
 
+function isYouTubeUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtu.be'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   try {
@@ -135,6 +144,9 @@ client.on('interactionCreate', async interaction => {
 
         await interaction.deferReply();
         const input = interaction.options.getString('query', true);
+        if (/^https?:\/\//i.test(input) && !isYouTubeUrl(input)) {
+          return interaction.editReply('This bot supports YouTube links only. Use a YouTube URL or search by song name.');
+        }
         const { track } = await player.play(voiceChannel, input, {
           nodeOptions: {
             metadata: { channel: interaction.channel },
@@ -209,6 +221,9 @@ client.on('interactionCreate', async interaction => {
         if (!queue?.currentTrack) return interaction.reply({ content: 'Start a song first with /play, then use /playnext.', ephemeral: true });
         await interaction.deferReply();
         const query = interaction.options.getString('query', true);
+        if (/^https?:\/\//i.test(query) && !isYouTubeUrl(query)) {
+          return interaction.editReply('This bot supports YouTube links only.');
+        }
         const result = await player.search(query, { requestedBy: interaction.user });
         const track = result.tracks[0];
         if (!track) return interaction.editReply('No YouTube results found.');
@@ -360,7 +375,7 @@ client.on('interactionCreate', async interaction => {
 
 player.events.on('playerStart', (queue, track) => {
   const channel = queue.metadata?.channel;
-  if (channel) {
+  if (channel && announceSongs.get(queue.guild.id) !== false) {
     channel.send(`🎶 Now playing: **[${track.title}](${track.url})**`).catch(() => {});
   }
 });
