@@ -17,6 +17,7 @@
     "dotenv": "^16.6.1",
     "bgutils-js": "^4.0.0",
     "googlevideo": "^4.0.0",
-    "simple-ytdl-core": "^1.1.0"
+    "simple-ytdl-core": "^1.1.0",
+    "discord-api-types": "^0.38.57"
   }
 }
