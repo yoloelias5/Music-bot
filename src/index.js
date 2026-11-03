@@ -1,5 +1,9 @@
 require('dotenv').config();
 
+// Discord Player v6's bundled extractor needs a YouTube streaming library.
+// Prefer play-dl instead of the deprecated ytdl-core forks.
+process.env.DP_FORCE_YTDL_MOD = 'play-dl';
+
 const {
   Client,
   GatewayIntentBits,
