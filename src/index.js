@@ -44,10 +44,6 @@ const commands = [
     .setName('playnext')
     .setDescription('Add a YouTube track to the front of the queue')
     .addStringOption(option => option.setName('query').setDescription('YouTube URL or song name').setRequired(true)),
-  new SlashCommandBuilder()
-    .setName('jump')
-    .setDescription('Skip to a track in the queue')
-    .addIntegerOption(option => option.setName('position').setDescription('Upcoming queue position').setMinValue(1).setRequired(true)),
   new SlashCommandBuilder().setName('removedupes').setDescription('Remove duplicate tracks from the queue').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('announcesongs').setDescription('Toggle now-playing announcements').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('replay').setDescription('Restart the current song'),
@@ -212,7 +208,7 @@ client.on('interactionCreate', async interaction => {
           embeds: [new EmbedBuilder()
             .setColor(0x5865F2)
             .setTitle('YouTube search results')
-            .setDescription(lines.join('\n'))
+            .setDescription(lines.join('\\n'))
             .setFooter({ text: 'Use /play with the title or link you want.' })],
         });
       }
@@ -229,14 +225,6 @@ client.on('interactionCreate', async interaction => {
         if (!track) return interaction.editReply('No YouTube results found.');
         queue.insertTrack(track, 0);
         return interaction.editReply(`⏭️ Added **[${track.title}](${track.url})** to play next.`);
-      }
-      case 'jump': {
-        if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
-        const position = interaction.options.getInteger('position', true);
-        const track = queue.tracks.at(position - 1);
-        if (!track) return interaction.reply({ content: 'That queue position does not exist.', ephemeral: true });
-        queue.node.skipTo(track);
-        return interaction.reply(`⏭️ Skipping to **${track.title}**.`);
       }
       case 'removedupes': {
         if (!queue || queue.tracks.size < 2) return interaction.reply('There are no duplicate upcoming tracks.');
@@ -332,7 +320,7 @@ client.on('interactionCreate', async interaction => {
         const embed = new EmbedBuilder()
           .setColor(0x5865F2)
           .setTitle('Music queue')
-          .setDescription(`**Now playing:** [${queue.currentTrack.title}](${queue.currentTrack.url})\n\n${lines.length ? lines.join('\n') : 'No upcoming tracks.'}`)
+          .setDescription(`**Now playing:** [${queue.currentTrack.title}](${queue.currentTrack.url})\\n\\n${lines.length ? lines.join('\\n') : 'No upcoming tracks.'}`)
           .setFooter({ text: `${queue.tracks.size} upcoming track(s)` });
         return interaction.reply({ embeds: [embed] });
       }
