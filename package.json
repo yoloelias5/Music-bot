@@ -15,6 +15,6 @@
     "discord.js": "^14.22.1",
     "discord-player": "^6.7.1",
     "dotenv": "^16.6.1",
-    "@distube/ytdl-core": "^4.16.12"
+    "discord-player-youtubei": "^1.4.7-beta.1"
   }
 }
