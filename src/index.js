@@ -9,7 +9,7 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
 } = require('discord.js');
-const { Player } = require('discord-player');
+const { Player, useHistory } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 
 const required = ['DISCORD_TOKEN', 'CLIENT_ID'];
@@ -24,6 +24,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
 });
 const player = new Player(client);
+const announceSongs = new Map();
 
 const commands = [
   new SlashCommandBuilder()
@@ -33,6 +34,22 @@ const commands = [
   new SlashCommandBuilder().setName('join').setDescription('Join your voice channel'),
   new SlashCommandBuilder().setName('leave').setDescription('Leave the voice channel'),
   new SlashCommandBuilder().setName('skip').setDescription('Skip the current song'),
+  new SlashCommandBuilder().setName('back').setDescription('Play the previous track'),
+  new SlashCommandBuilder().setName('grab').setDescription('Send the current track to your DMs'),
+  new SlashCommandBuilder()
+    .setName('search')
+    .setDescription('Search YouTube for tracks')
+    .addStringOption(option => option.setName('query').setDescription('Song name or keywords').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('playnext')
+    .setDescription('Add a YouTube track to the front of the queue')
+    .addStringOption(option => option.setName('query').setDescription('YouTube URL or song name').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('jump')
+    .setDescription('Skip to a track in the queue')
+    .addIntegerOption(option => option.setName('position').setDescription('Upcoming queue position').setMinValue(1).setRequired(true)),
+  new SlashCommandBuilder().setName('removedupes').setDescription('Remove duplicate tracks from the queue'),
+  new SlashCommandBuilder().setName('announcesongs').setDescription('Toggle now-playing announcements'),
   new SlashCommandBuilder().setName('replay').setDescription('Restart the current song'),
   new SlashCommandBuilder().setName('clear').setDescription('Clear upcoming songs'),
   new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle upcoming songs'),
@@ -153,6 +170,78 @@ client.on('interactionCreate', async interaction => {
         if (!queue) return interaction.reply({ content: 'I am not in a voice channel.', ephemeral: true });
         queue.delete();
         return interaction.reply('👋 Left the voice channel.');
+      }
+      case 'back': {
+        const history = useHistory(interaction.guildId);
+        if (!history?.previousTrack) return interaction.reply({ content: 'There is no previous track to play.', ephemeral: true });
+        await history.previous();
+        return interaction.reply('⏮️ Playing the previous track.');
+      }
+      case 'grab': {
+        if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
+        const track = queue.currentTrack;
+        await interaction.user.send({
+          embeds: [new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('Saved track')
+            .setDescription(`[${track.title}](${track.url})`)
+            .setThumbnail(track.thumbnail || null)],
+        });
+        return interaction.reply({ content: '📩 Sent the current track to your DMs.', ephemeral: true });
+      }
+      case 'search': {
+        await interaction.deferReply({ ephemeral: true });
+        const query = interaction.options.getString('query', true);
+        const result = await player.search(query, { requestedBy: interaction.user });
+        const tracks = result.tracks.slice(0, 5);
+        if (!tracks.length) return interaction.editReply('No YouTube results found. Try a more specific search.');
+        const lines = tracks.map((track, index) => `**${index + 1}.** [${track.title}](${track.url}) · ${track.duration}`);
+        return interaction.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('YouTube search results')
+            .setDescription(lines.join('\\n'))
+            .setFooter({ text: 'Use /play with the title or link you want.' })],
+        });
+      }
+      case 'playnext': {
+        if (!voiceChannel) return interaction.reply({ content: 'Join a voice channel first.', ephemeral: true });
+        if (!queue?.currentTrack) return interaction.reply({ content: 'Start a song first with /play, then use /playnext.', ephemeral: true });
+        await interaction.deferReply();
+        const query = interaction.options.getString('query', true);
+        const result = await player.search(query, { requestedBy: interaction.user });
+        const track = result.tracks[0];
+        if (!track) return interaction.editReply('No YouTube results found.');
+        queue.insertTrack(track, 0);
+        return interaction.editReply(`⏭️ Added **[${track.title}](${track.url})** to play next.`);
+      }
+      case 'jump': {
+        if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
+        const position = interaction.options.getInteger('position', true);
+        const track = queue.tracks.at(position - 1);
+        if (!track) return interaction.reply({ content: 'That queue position does not exist.', ephemeral: true });
+        queue.node.skipTo(track);
+        return interaction.reply(`⏭️ Skipping to **${track.title}**.`);
+      }
+      case 'removedupes': {
+        if (!queue || queue.tracks.size < 2) return interaction.reply('There are no duplicate upcoming tracks.');
+        const seen = new Set();
+        let removed = 0;
+        for (const track of queue.tracks.toArray()) {
+          const key = track.title.trim().toLowerCase();
+          if (seen.has(key)) {
+            queue.removeTrack(track);
+            removed++;
+          } else {
+            seen.add(key);
+          }
+        }
+        return interaction.reply(`🧹 Removed **${removed}** duplicate track(s).`);
+      }
+      case 'announcesongs': {
+        const enabled = !(announceSongs.get(interaction.guildId) ?? true);
+        announceSongs.set(interaction.guildId, enabled);
+        return interaction.reply(`🔔 Song announcements are now **${enabled ? 'ON' : 'OFF'}**.`);
       }
       case 'skip': {
         if (!queue || !queue.isPlaying()) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
