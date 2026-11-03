@@ -85,8 +85,8 @@ async function spotifyToSearch(query) {
   if (type === 'track') {
     return `${data.name} ${data.artists.map(artist => artist.name).join(' ')}`;
   }
-  const tracks = type === 'album' ? data.tracks?.items : data.tracks?.items;
-  const firstTrack = tracks?.[0];
+  const firstItem = data.tracks?.items?.[0];
+  const firstTrack = type === 'playlist' ? firstItem?.track : firstItem;
   if (!firstTrack) throw new Error('No playable tracks were found in that Spotify link.');
   return `${firstTrack.name} ${firstTrack.artists.map(artist => artist.name).join(' ')}`;
 }
