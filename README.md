@@ -14,6 +14,7 @@ An independent Discord slash-command music bot with YouTube playback and queue c
 ## Requirements
 
 - Node.js 20 or newer
+- Discord Player 7.2.0 with the YouTube-only `discord-player-youtubei` 3.1.0 extractor (installed by `npm install`)
 - A Discord application and bot
 
 ## Run locally
