@@ -10,7 +10,6 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const { Player, useHistory } = require('discord-player');
-const { DefaultExtractors } = require('@discord-player/extractor');
 
 const required = ['DISCORD_TOKEN', 'CLIENT_ID'];
 for (const key of required) {
@@ -372,7 +371,7 @@ player.events.on('playerError', (queue, error) => console.error(`Track error in 
 
 (async () => {
   try {
-    await player.extractors.loadMulti(DefaultExtractors);
+    await player.extractors.loadDefault();
     await client.login(process.env.DISCORD_TOKEN);
   } catch (error) {
     console.error('Bot startup failed:', error);
