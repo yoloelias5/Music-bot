@@ -1,0 +1,17 @@
+{
+  "name": "music-bot",
+  "version": "1.0.0",
+  "description": "A Discord music bot with YouTube playback and Spotify link lookup.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": { "node": ">=20.0.0" },
+  "dependencies": {
+    "@discord-player/extractor": "^4.5.1",
+    "discord.js": "^14.22.1",
+    "discord-player": "^6.7.1",
+    "dotenv": "^16.6.1"
+  }
+}
