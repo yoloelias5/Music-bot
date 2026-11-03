@@ -9,7 +9,8 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
 } = require('discord.js');
-const { Player, QueryType, useHistory } = require('discord-player');
+const { Player, useHistory } = require('discord-player');
+const { YoutubeiExtractor } = require('discord-player-youtubei');
 
 const required = ['DISCORD_TOKEN', 'CLIENT_ID'];
 for (const key of required) {
@@ -23,6 +24,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
 });
 const player = new Player(client);
+const YOUTUBE_SEARCH_ENGINE = `ext:${YoutubeiExtractor.identifier}`;
 const announceSongs = new Map();
 
 const commands = [
@@ -160,8 +162,12 @@ client.on('interactionCreate', async interaction => {
           return interaction.editReply('This bot supports YouTube links only. Use a YouTube URL or search by song name.');
         }
         const playInput = isYouTubeUrl(input) ? normalizeYouTubeUrl(input) : input;
-        const { track } = await player.play(voiceChannel, playInput, {
-          searchEngine: isYouTubeUrl(input) ? QueryType.YOUTUBE_VIDEO : QueryType.YOUTUBE_SEARCH,
+        const result = await player.search(playInput, {
+          searchEngine: YOUTUBE_SEARCH_ENGINE,
+          requestedBy: interaction.user,
+        });
+        if (!result.hasTracks()) throw new Error('No YouTube results found. Try another song or link.');
+        const { track } = await player.play(voiceChannel, result, {
           nodeOptions: {
             metadata: { channel: interaction.channel },
             volume: 70,
@@ -219,7 +225,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
         const query = interaction.options.getString('query', true);
         const result = await player.search(query, {
-          searchEngine: QueryType.YOUTUBE_SEARCH,
+          searchEngine: YOUTUBE_SEARCH_ENGINE,
           requestedBy: interaction.user,
         });
         const tracks = result.tracks.slice(0, 5);
@@ -243,7 +249,7 @@ client.on('interactionCreate', async interaction => {
         }
         const searchInput = isYouTubeUrl(query) ? normalizeYouTubeUrl(query) : query;
         const result = await player.search(searchInput, {
-          searchEngine: isYouTubeUrl(query) ? QueryType.YOUTUBE_VIDEO : QueryType.YOUTUBE_SEARCH,
+          searchEngine: YOUTUBE_SEARCH_ENGINE,
           requestedBy: interaction.user,
         });
         const track = result.tracks[0];
@@ -398,6 +404,7 @@ player.events.on('playerError', (queue, error) => console.error(`Track error in 
 (async () => {
   try {
     await player.extractors.loadDefault();
+    await player.extractors.register(YoutubeiExtractor, {});
     await client.login(process.env.DISCORD_TOKEN);
   } catch (error) {
     console.error('Bot startup failed:', error);
