@@ -1,9 +1,5 @@
 require('dotenv').config();
 
-// Discord Player v6's bundled extractor needs a YouTube streaming library.
-// Prefer play-dl instead of the deprecated ytdl-core forks.
-process.env.DP_FORCE_YTDL_MOD = 'play-dl';
-
 const {
   Client,
   GatewayIntentBits,
@@ -12,9 +8,10 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
+  Events,
 } = require('discord.js');
 const { Player, useHistory } = require('discord-player');
-const { YoutubeiExtractor } = require('discord-player-youtubei');
+const { YoutubeExtractor } = require('discord-player-youtubei');
 
 const required = ['DISCORD_TOKEN', 'CLIENT_ID'];
 for (const key of required) {
@@ -28,7 +25,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
 });
 const player = new Player(client);
-const YOUTUBE_SEARCH_ENGINE = `ext:${YoutubeiExtractor.identifier}`;
+const YOUTUBE_SEARCH_ENGINE = `ext:${YoutubeExtractor.identifier}`;
 const announceSongs = new Map();
 
 const commands = [
@@ -129,7 +126,7 @@ function normalizeYouTubeUrl(value) {
   }
 }
 
-client.once('ready', async () => {
+client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}`);
   try {
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -407,18 +404,16 @@ player.events.on('playerError', (queue, error) => console.error(`Track error in 
 
 (async () => {
   try {
-    // Discord Player v6 may preload its bundled default extractors.
-    // Remove every provider first so Spotify, Apple Music, SoundCloud,
-    // Vimeo, Reverbnation, attachments and the legacy YouTube extractor
-    // are not available in this YouTube-only bot.
+    // Register only the maintained YouTube extractor. No Spotify, Apple Music,
+    // SoundCloud, Vimeo, or other providers are loaded in this bot.
     await player.extractors.unregisterAll();
-    await player.extractors.register(YoutubeiExtractor, {});
+    await player.extractors.register(YoutubeExtractor, {});
     const registered = [...player.extractors.store.keys()];
     console.log('Active extractors:', registered);
-    if (registered.length !== 1 || registered[0] !== YoutubeiExtractor.identifier) {
+    if (registered.length !== 1 || registered[0] !== YoutubeExtractor.identifier) {
       throw new Error('Unexpected extractor registry: this bot must load YouTubei only.');
     }
-    console.log('YouTube-only extractor registered.');
+    console.log(`YouTube-only extractor registered (Discord Player ${Player.version}).`);
     await client.login(process.env.DISCORD_TOKEN);
   } catch (error) {
     console.error('Bot startup failed:', error);
