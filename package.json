@@ -11,10 +11,12 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@discord-player/extractor": "^4.5.1",
     "discord.js": "^14.22.1",
     "discord-player": "^6.7.1",
     "dotenv": "^16.6.1",
-    "discord-player-youtubei": "^1.4.7-beta.1"
+    "discord-player-youtubei": "^1.4.7-beta.1",
+    "bgutils-js": "^4.0.0",
+    "googlevideo": "^4.0.0",
+    "simple-ytdl-core": "^1.1.0"
   }
 }
