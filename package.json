@@ -17,6 +17,7 @@
     "discord-player-youtubei": "^1.4.7-beta.1",
     "bgutils-js": "^4.0.0",
     "googlevideo": "^4.0.0",
-    "simple-ytdl-core": "^1.1.0"
+    "simple-ytdl-core": "^1.1.0",
+    "play-dl": "^1.9.7"
   }
 }
