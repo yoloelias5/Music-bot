@@ -28,8 +28,8 @@ const player = new Player(client);
 const commands = [
   new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Play a YouTube song or search for a track (Spotify links supported)')
-    .addStringOption(option => option.setName('query').setDescription('Song name or URL').setRequired(true)),
+    .setDescription('Play a YouTube song or search for a track')
+    .addStringOption(option => option.setName('query').setDescription('YouTube URL or song name').setRequired(true)),
   new SlashCommandBuilder().setName('join').setDescription('Join your voice channel'),
   new SlashCommandBuilder().setName('leave').setDescription('Leave the voice channel'),
   new SlashCommandBuilder().setName('skip').setDescription('Skip the current song'),
@@ -72,44 +72,13 @@ const commands = [
       )),
 ].map(command => command.toJSON());
 
-async function spotifyToSearch(query) {
-  const match = query.match(/open\.spotify\.com\/(track|album|playlist)\/([A-Za-z0-9]+)/i);
-  if (!match) return query;
-
-  const { SPOTIFY_CLIENT_ID: id, SPOTIFY_CLIENT_SECRET: secret } = process.env;
-  if (!id || !secret) {
-    throw new Error('Spotify links need SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env. You can still play YouTube links and searches.');
+function parseTimestamp(value) {
+  const parts = value.split(':').map(Number);
+  if (!parts.length || parts.some(part => !Number.isInteger(part) || part < 0) || parts.length > 3) {
+    throw new Error('Use a timestamp like 1:25 or 1:02:30.');
   }
-
-  const credentials = Buffer.from(`${id}:${secret}`).toString('base64');
-  const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: 'grant_type=client_credentials',
-  });
-  if (!tokenResponse.ok) throw new Error('Could not authenticate with Spotify. Check your Spotify API credentials.');
-  const tokenData = await tokenResponse.json();
-
-  const [, type, spotifyId] = match;
-  const endpoint = type === 'track'
-    ? `tracks/${spotifyId}`
-    : `${type}s/${spotifyId}`;
-  const response = await fetch(`https://api.spotify.com/v1/${endpoint}`, {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  });
-  if (!response.ok) throw new Error('Could not read that Spotify link. Check that it is public and try again.');
-  const data = await response.json();
-
-  if (type === 'track') {
-    return `${data.name} ${data.artists.map(artist => artist.name).join(' ')}`;
-  }
-  const firstItem = data.tracks?.items?.[0];
-  const firstTrack = type === 'playlist' ? firstItem?.track : firstItem;
-  if (!firstTrack) throw new Error('No playable tracks were found in that Spotify link.');
-  return `${firstTrack.name} ${firstTrack.artists.map(artist => artist.name).join(' ')}`;
+  const seconds = parts.reduce((total, part) => total * 60 + part, 0);
+  return seconds * 1000;
 }
 
 function getQueue(guildId) {
@@ -149,8 +118,7 @@ client.on('interactionCreate', async interaction => {
 
         await interaction.deferReply();
         const input = interaction.options.getString('query', true);
-        const searchQuery = await spotifyToSearch(input);
-        const { track } = await player.play(voiceChannel, searchQuery, {
+        const { track } = await player.play(voiceChannel, input, {
           nodeOptions: {
             metadata: { channel: interaction.channel },
             volume: 70,
@@ -172,6 +140,20 @@ client.on('interactionCreate', async interaction => {
         return interaction.editReply({ embeds: [embed] });
       }
 
+      case 'join': {
+        if (!voiceChannel) return interaction.reply({ content: 'Join a voice channel first.', ephemeral: true });
+        const activeQueue = queue || player.nodes.create(interaction.guild, {
+          metadata: { channel: interaction.channel },
+          selfDeaf: true,
+        });
+        if (!activeQueue.connection) await activeQueue.connect(voiceChannel);
+        return interaction.reply('🔊 Joined your voice channel.');
+      }
+      case 'leave': {
+        if (!queue) return interaction.reply({ content: 'I am not in a voice channel.', ephemeral: true });
+        queue.delete();
+        return interaction.reply('👋 Left the voice channel.');
+      }
       case 'skip': {
         if (!queue || !queue.isPlaying()) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
         queue.node.skip();
@@ -203,12 +185,13 @@ client.on('interactionCreate', async interaction => {
       }
       case 'seek': {
         if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
-        const milliseconds = parseTimestamp(interaction.options.getString('time', true));
+        const time = interaction.options.getString('time', true);
+        const milliseconds = parseTimestamp(time);
         if (queue.currentTrack.durationMS && milliseconds >= queue.currentTrack.durationMS) {
           return interaction.reply({ content: 'That timestamp is beyond the song length.', ephemeral: true });
         }
         await queue.node.seek(milliseconds);
-        return interaction.reply(`⏩ Jumped to **${interaction.options.getString('time', true)}**.`);
+        return interaction.reply(`⏩ Jumped to **${time}**.`);
       }
       case 'forward':
       case 'rewind': {
