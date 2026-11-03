@@ -30,7 +30,28 @@ const commands = [
     .setName('play')
     .setDescription('Play a YouTube song or search for a track (Spotify links supported)')
     .addStringOption(option => option.setName('query').setDescription('Song name or URL').setRequired(true)),
+  new SlashCommandBuilder().setName('join').setDescription('Join your voice channel'),
+  new SlashCommandBuilder().setName('leave').setDescription('Leave the voice channel'),
   new SlashCommandBuilder().setName('skip').setDescription('Skip the current song'),
+  new SlashCommandBuilder().setName('replay').setDescription('Restart the current song'),
+  new SlashCommandBuilder().setName('clear').setDescription('Clear upcoming songs'),
+  new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle upcoming songs'),
+  new SlashCommandBuilder()
+    .setName('remove')
+    .setDescription('Remove a song from the queue')
+    .addIntegerOption(option => option.setName('position').setDescription('Position in the upcoming queue').setMinValue(1).setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('seek')
+    .setDescription('Jump to a timestamp in the current song')
+    .addStringOption(option => option.setName('time').setDescription('Timestamp, for example 1:25').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('forward')
+    .setDescription('Move forward in the current song')
+    .addIntegerOption(option => option.setName('seconds').setDescription('Seconds to move forward').setMinValue(1).setMaxValue(600).setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('rewind')
+    .setDescription('Move backward in the current song')
+    .addIntegerOption(option => option.setName('seconds').setDescription('Seconds to move backward').setMinValue(1).setMaxValue(600).setRequired(true)),
   new SlashCommandBuilder().setName('stop').setDescription('Stop playback and clear the queue'),
   new SlashCommandBuilder().setName('pause').setDescription('Pause playback'),
   new SlashCommandBuilder().setName('resume').setDescription('Resume playback'),
@@ -155,6 +176,52 @@ client.on('interactionCreate', async interaction => {
         if (!queue || !queue.isPlaying()) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
         queue.node.skip();
         return interaction.reply('⏭️ Skipped.');
+      }
+      case 'replay': {
+        if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
+        await queue.node.seek(0);
+        return interaction.reply('⏮️ Restarted the current song.');
+      }
+      case 'clear': {
+        if (!queue) return interaction.reply({ content: 'There is no active queue.', ephemeral: true });
+        const count = queue.tracks.size;
+        queue.tracks.clear();
+        return interaction.reply(`🧹 Cleared **${count}** upcoming song(s).`);
+      }
+      case 'shuffle': {
+        if (!queue || queue.tracks.size < 2) return interaction.reply({ content: 'Add at least two upcoming songs first.', ephemeral: true });
+        queue.tracks.shuffle();
+        return interaction.reply('🔀 Shuffled the queue.');
+      }
+      case 'remove': {
+        if (!queue) return interaction.reply({ content: 'There is no active queue.', ephemeral: true });
+        const position = interaction.options.getInteger('position', true);
+        const track = queue.tracks.at(position - 1);
+        if (!track) return interaction.reply({ content: 'That queue position does not exist.', ephemeral: true });
+        queue.removeTrack(track);
+        return interaction.reply(`🗑️ Removed **${track.title}** from the queue.`);
+      }
+      case 'seek': {
+        if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
+        const milliseconds = parseTimestamp(interaction.options.getString('time', true));
+        if (queue.currentTrack.durationMS && milliseconds >= queue.currentTrack.durationMS) {
+          return interaction.reply({ content: 'That timestamp is beyond the song length.', ephemeral: true });
+        }
+        await queue.node.seek(milliseconds);
+        return interaction.reply(`⏩ Jumped to **${interaction.options.getString('time', true)}**.`);
+      }
+      case 'forward':
+      case 'rewind': {
+        if (!queue?.currentTrack) return interaction.reply({ content: 'Nothing is playing right now.', ephemeral: true });
+        const seconds = interaction.options.getInteger('seconds', true);
+        const delta = seconds * 1000 * (interaction.commandName === 'forward' ? 1 : -1);
+        const current = queue.node.getTimestamp()?.current ?? 0;
+        const target = Math.max(0, current + delta);
+        if (queue.currentTrack.durationMS && target >= queue.currentTrack.durationMS) {
+          return interaction.reply({ content: 'That would go beyond the end of the song.', ephemeral: true });
+        }
+        await queue.node.seek(target);
+        return interaction.reply(interaction.commandName === 'forward' ? `⏩ Forwarded **${seconds} seconds**.` : `⏪ Rewound **${seconds} seconds**.`);
       }
       case 'stop': {
         if (!queue) return interaction.reply({ content: 'There is no active queue.', ephemeral: true });
