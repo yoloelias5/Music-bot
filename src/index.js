@@ -212,7 +212,7 @@ client.on('interactionCreate', async interaction => {
           embeds: [new EmbedBuilder()
             .setColor(0x5865F2)
             .setTitle('YouTube search results')
-            .setDescription(lines.join('\\n'))
+            .setDescription(lines.join('\n'))
             .setFooter({ text: 'Use /play with the title or link you want.' })],
         });
       }
