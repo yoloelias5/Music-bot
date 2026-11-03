@@ -48,8 +48,8 @@ const commands = [
     .setName('jump')
     .setDescription('Skip to a track in the queue')
     .addIntegerOption(option => option.setName('position').setDescription('Upcoming queue position').setMinValue(1).setRequired(true)),
-  new SlashCommandBuilder().setName('removedupes').setDescription('Remove duplicate tracks from the queue'),
-  new SlashCommandBuilder().setName('announcesongs').setDescription('Toggle now-playing announcements'),
+  new SlashCommandBuilder().setName('removedupes').setDescription('Remove duplicate tracks from the queue').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('announcesongs').setDescription('Toggle now-playing announcements').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('replay').setDescription('Restart the current song'),
   new SlashCommandBuilder().setName('clear').setDescription('Clear upcoming songs'),
   new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle upcoming songs'),
