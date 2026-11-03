@@ -5,7 +5,7 @@ An independent Discord slash-command music bot with YouTube playback and queue c
 ## Features
 
 - YouTube URLs and song searches
-- Queue controls: join, leave, skip, back, jump, clear, shuffle, remove, remove duplicates, play next
+- Queue controls: join, leave, skip, back, clear, shuffle, remove, remove duplicates, play next
 - Playback controls: pause, resume, seek, forward, rewind, volume, loop, replay
 - Track utilities: search results and send the current track to your DMs
 - Optional now-playing announcements
@@ -53,7 +53,6 @@ Hosting availability, resource limits, and free-plan policies are controlled by 
 | `/playnext query:` | Add a track to the front of the queue |
 | `/join` / `/leave` | Join or leave your voice channel |
 | `/skip` / `/back` | Skip forward or play the previous track |
-| `/jump position:` | Skip to an upcoming queue position |
 | `/grab` | Send the current track link to your DMs |
 | `/queue` / `/nowplaying` | Show the queue or current track |
 | `/clear` / `/shuffle` | Clear or shuffle upcoming tracks |
